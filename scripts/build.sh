@@ -49,8 +49,10 @@ build_app() {
 build_full() {
   echo "Building everything..."
 
-  build_scons
+  # flowy must run first: buildozer downloads the Android NDK that
+  # build_scons depends on (ndk-build).
   build_flowy
+  build_scons
   build_app
 }
 
@@ -59,7 +61,9 @@ run() {
 }
 
 # The first build will be slow as we're building a Python environment
-if [ ! -d "flowy/.buildozer" ]; then
+# NOTE: the p4a checkout may be pre-created by CI, so presence of
+# flowy/.buildozer does not mean the toolchain is installed.
+if [ ! -d "$HOME/.buildozer/android/platform/android-ndk-r28c" ]; then
   build_flowy
 fi
 
