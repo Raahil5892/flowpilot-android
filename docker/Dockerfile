@@ -8,6 +8,7 @@ WORKDIR /capnproto-java
 RUN make && make install
 
 RUN python3 -m venv ~/.venv
-RUN ~/.venv/bin/pip install buildozer setuptools cython
+RUN apt install -y ninja-build
+RUN ~/.venv/bin/pip install buildozer setuptools cython meson meson-python ninja pyproject-metadata packaging wheel build
 RUN ~/.venv/bin/pip install scons numpy pycryptodome pycapnp
 RUN ~/.venv/bin/pip install pyyaml certifi hatanaka casadi future-fstrings
