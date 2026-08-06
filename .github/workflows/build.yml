@@ -1,8 +1,5 @@
 name: Build
-on: 
-  push:
-    branches:
-      - master
+on:
   workflow_dispatch:
     inputs:
       name:
@@ -12,11 +9,42 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 350
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
       with:
         submodules: true
+
+    - name: Free up disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup || true
+        df -h
+
+    - name: Fetch missing dependencies
+      run: |
+        set -e
+        clone_if_empty() {
+          DIR="$1"; URL="$2"; BR="$3"
+          if [ -z "$(ls -A $DIR 2>/dev/null)" ]; then
+            rm -rf "$DIR"
+            if [ -n "$BR" ]; then
+              git clone --depth 1 --branch "$BR" "$URL" "$DIR"
+            else
+              git clone --depth 1 "$URL" "$DIR"
+            fi
+          fi
+        }
+        clone_if_empty docker/capnproto-java https://github.com/capnproto/capnproto-java.git ""
+        clone_if_empty third_party/libusb https://github.com/jagheterfredrik/libusb.git android-rebase-2022-07
+        clone_if_empty third_party/libzmq https://github.com/zeromq/libzmq.git ""
+        clone_if_empty third_party/eigen3 https://gitlab.com/libeigen/eigen.git ""
+        clone_if_empty rednose_repo https://github.com/flowdriveai/rednose.git ""
+        clone_if_empty laika_repo https://github.com/flowdriveai/laika.git ""
+        echo "--- dependency status ---"
+        for d in docker/capnproto-java third_party/libusb third_party/libzmq third_party/eigen3 rednose_repo laika_repo; do
+          echo "$d: $(ls -A $d 2>/dev/null | wc -l) entries"
+        done
 
     - name: Build Docker image
       run: |
@@ -26,14 +54,24 @@ jobs:
       run: |
         ./build.sh full
 
+    - name: Show build outputs
+      if: always()
+      run: |
+        find android/build/outputs -type f -name '*.apk' -exec ls -lh {} \; || true
+        ls -lh android/libs/arm64-v8a || true
+
     - name: Archive apk
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: android-release.apk
-        path: android/build/outputs/apk/release/android-release.apk
+        name: android-release-apk
+        path: android/build/outputs/apk/**/*.apk
+        if-no-files-found: warn
 
     - name: Archive libs
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: libs
         path: android/libs
+        if-no-files-found: warn
