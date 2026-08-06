@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 source ~/.venv/bin/activate
 
