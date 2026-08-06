@@ -46,6 +46,24 @@ jobs:
           echo "$d: $(ls -A $d 2>/dev/null | wc -l) entries"
         done
 
+    - name: Pre-install and patch python-for-android
+      run: |
+        set -e
+        P4A_DIR=flowy/.buildozer/android/platform/python-for-android
+        P4A_COMMIT=5aa97321ebf7339edf04e707beccbf94a284f4c9
+        mkdir -p "$(dirname $P4A_DIR)"
+        if [ ! -d "$P4A_DIR/.git" ]; then
+          git clone https://github.com/kivy/python-for-android.git "$P4A_DIR"
+        fi
+        git -C "$P4A_DIR" checkout "$P4A_COMMIT"
+        # Build isolation is broken on this toolchain: the isolated venv
+        # installs the backend but cannot import it (mesonpy / setuptools.build_meta).
+        # Force every PyProjectRecipe to build without isolation.
+        sed -i 's/            "--wheel",/            "--wheel", "--no-isolation", "--skip-dependency-check",/' \
+          "$P4A_DIR/pythonforandroid/recipe.py"
+        echo "--- verifying patch ---"
+        grep -n -- "--no-isolation" "$P4A_DIR/pythonforandroid/recipe.py" || (echo "PATCH FAILED" && exit 1)
+
     - name: Build Docker image
       run: |
         ./build_env.sh
